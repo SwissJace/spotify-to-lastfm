@@ -102,14 +102,17 @@ def chunk(it, size):
 async def lastfm_request(params: dict, session: aiohttp.ClientSession):
     base_url = "https://ws.audioscrobbler.com/2.0"
     assert LASTFM_API_KEY is not None
-    params.update({"api_key": LASTFM_API_KEY})
-    params.update(
-        {
-            "api_sig": sign_call(params),
-            "format": "json",
-        }
-    )
-    async with session.post(url=base_url, params=params) as response:
+
+    # We copy the dict to avoid mutating the original if needed elsewhere
+    full_params = params.copy()
+    full_params.update({"api_key": LASTFM_API_KEY})
+    full_params.update({
+        "api_sig": sign_call(full_params),
+        "format": "json",
+    })
+
+    # CHANGE: Use 'data' instead of 'params' to send as form-data in the body
+    async with session.post(url=base_url, data=full_params) as response:
         response.raise_for_status()
         data = await response.json()
 
@@ -134,6 +137,7 @@ async def main(filename):
                     "-",
                     track["track"],
                 )
+
         await scrobble(session_key, data, timestamp)
 
 
